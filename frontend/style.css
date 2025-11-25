@@ -1,4 +1,3 @@
-/* Reset trochę marginesów itd. */
 *,
 *::before,
 *::after {
@@ -68,6 +67,15 @@ label {
   margin-bottom: 8px;
 }
 
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
 input[type="email"],
 input[type="password"],
 input[type="text"],
@@ -131,7 +139,7 @@ input::file-selector-button {
   font-size: 12px;
 }
 
-/* Zakładki logowanie/rejestracja */
+/* Zakładki login/rejestracja */
 
 .tabs {
   display: inline-flex;
