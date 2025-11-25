@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(cors());
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const JWT_SECRET = 'super_tajny_klucz_123';
 
 // Middleware
@@ -128,6 +128,6 @@ app.get('/beats', (req, res) => {
 });
 
 // Start serwera
-app.listen(PORT, () => {
-    console.log(`Serwer działa na http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Serwer działa na http://localhost:${PORT}`);
 });
