@@ -1,9 +1,12 @@
+// database.js
 const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
-// tworzymy / otwieramy bazę
-const db = new sqlite3.Database('moja_baza.db');
+// baza w pliku moja_baza.db w katalogu projektu
+const dbPath = path.join(__dirname, 'moja_baza.db');
+const db = new sqlite3.Database(dbPath);
 
-// tworzenie tabel, jeśli nie istnieją
+// Tworzenie tabel, jeśli nie istnieją
 db.serialize(() => {
   // Tabela użytkowników
   db.run(`

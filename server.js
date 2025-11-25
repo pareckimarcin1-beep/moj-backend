@@ -1,53 +1,38 @@
+// server.js
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const db = require('./database');
 
-// ===== KONFIGURACJA POD RENDER =====
 const app = express();
+
+// PORT dla lokalnie i dla Rendera
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'super_tajny_klucz_123';
 
-// Middleware do JSON i formularzy
+// ===== MIDDLEWARE =====
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Proste CORS (żeby frontend mógł gadać z backendem)
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'Content-Type, Authorization'
-  );
-  res.setHeader(
-    'Access-Control-Allow-Methods',
-    'GET, POST, PUT, DELETE, OPTIONS'
-  );
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-  next();
-});
-
-// ===== STATYCZNE PLIKI =====
-
-// Frontend (index.html, script.js, style.css)
+// statyczne pliki z frontendu (HTML, CSS, JS, obrazki itd.)
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// Uploady (mp3/wav)
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
-app.use('/uploads', express.static(uploadsDir));
+// ===== KONFIGURACJA MULTER (upload bitów) =====
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, 'uploads'));
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
 
-// ===== AUTH MIDDLEWARE =====
+const upload = multer({ storage });
 
+// ===== FUNKCJA AUTORYZACJI (JWT) =====
 function authMiddleware(req, res, next) {
-  const authHeader = req.headers['authorization'];
+  const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ error: 'Brak tokenu.' });
   }
@@ -59,65 +44,63 @@ function authMiddleware(req, res, next) {
       return res.status(401).json({ error: 'Nieprawidłowy token.' });
     }
 
+    // zapisujemy info o userze do req
     req.user = {
-      id: payload.userId,
-      email: payload.email,
+      userId: payload.userId,
+      email: payload.email
     };
+
     next();
   });
 }
 
-// ===== REJESTRACJA =====
+// ===== PROSTY ENDPOINT TESTOWY API =====
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, message: 'Backend działa 🔥' });
+});
 
-app.post('/api/register', (req, res) => {
+// ===== REJESTRACJA UŻYTKOWNIKA =====
+app.post('/register', (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Podaj email i hasło.' });
   }
 
+  // sprawdź, czy email już istnieje
   const sqlCheck = 'SELECT id FROM users WHERE email = ?';
   db.get(sqlCheck, [email], (err, row) => {
     if (err) {
       console.error(err);
-      return res.status(500).json({ error: 'Błąd bazy danych.' });
+      return res.status(500).json({ error: 'Błąd serwera przy sprawdzaniu użytkownika.' });
     }
 
     if (row) {
-      return res
-        .status(400)
-        .json({ error: 'Użytkownik o takim emailu już istnieje.' });
+      return res.status(409).json({ error: 'Użytkownik z takim mailem już istnieje.' });
     }
 
+    // hashujemy hasło
     bcrypt.hash(password, 10, (hashErr, hash) => {
       if (hashErr) {
         console.error(hashErr);
-        return res
-          .status(500)
-          .json({ error: 'Błąd serwera przy haszowaniu hasła.' });
+        return res.status(500).json({ error: 'Błąd serwera przy haszowaniu hasła.' });
       }
 
-      const insertSql = 'INSERT INTO users (email, password) VALUES (?, ?)';
-      db.run(insertSql, [email, hash], function (insertErr) {
+      const sqlInsert = 'INSERT INTO users (email, password) VALUES (?, ?)';
+      db.run(sqlInsert, [email, hash], function (insertErr) {
         if (insertErr) {
           console.error(insertErr);
-          return res
-            .status(500)
-            .json({ error: 'Błąd bazy danych przy tworzeniu użytkownika.' });
+          return res.status(500).json({ error: 'Błąd serwera przy zapisie użytkownika.' });
         }
 
-        return res.status(201).json({
-          message: 'Utworzono użytkownika.',
-          userId: this.lastID,
-        });
+        return res.status(201).json({ message: 'Utworzono użytkownika.' });
       });
     });
   });
 });
 
-// ===== LOGOWANIE =====
-
-app.post('/api/login', (req, res) => {
+// ===== LOGOWANIE UŻYTKOWNIKA =====
+app.post('/login', (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -128,20 +111,21 @@ app.post('/api/login', (req, res) => {
   db.get(sql, [email], (err, user) => {
     if (err) {
       console.error(err);
-      return res.status(500).json({ error: 'Błąd bazy danych.' });
+      return res.status(500).json({ error: 'Błąd serwera przy logowaniu.' });
     }
 
     if (!user) {
-      return res
-        .status(400)
-        .json({ error: 'Nieprawidłowy login lub hasło.' });
+      return res.status(401).json({ error: 'Nieprawidłowe dane logowania.' });
     }
 
-    bcrypt.compare(password, user.password, (cmpErr, isMatch) => {
-      if (cmpErr || !isMatch) {
-        return res
-          .status(400)
-          .json({ error: 'Nieprawidłowy login lub hasło.' });
+    bcrypt.compare(password, user.password, (bcryptErr, isMatch) => {
+      if (bcryptErr) {
+        console.error(bcryptErr);
+        return res.status(500).json({ error: 'Błąd serwera przy sprawdzaniu hasła.' });
+      }
+
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Nieprawidłowe dane logowania.' });
       }
 
       const token = jwt.sign(
@@ -150,126 +134,62 @@ app.post('/api/login', (req, res) => {
         { expiresIn: '7d' }
       );
 
-      return res.json({
-        message: 'Zalogowano.',
-        token,
-      });
+      return res.json({ message: 'Zalogowano.', token });
     });
   });
 });
 
-// ===== MULTER – UPLOAD BITÓW =====
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const timestamp = Date.now();
-    const ext = path.extname(file.originalname);
-    cb(null, `${timestamp}${ext}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 20 * 1024 * 1024, // 20 MB
-  },
-  fileFilter: (req, file, cb) => {
-    // pozwólmy na audio; jak chcesz, możesz później zaostrzyć
-    if (file.mimetype.startsWith('audio/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Dozwolone są tylko pliki audio.'), false);
-    }
-  },
-});
-
-// ===== ENDPOINT: UPLOAD BITU (MP3/WAV) – WYMAGA TOKENU =====
-
+// ===== UPLOAD BITU (MP3/WAV) – chroniony JWT =====
 app.post(
-  '/api/beats/upload',
+  '/beats/upload',
   authMiddleware,
   upload.single('beat_file'),
   (req, res) => {
     const { title, price } = req.body;
-    const file = req.file;
+    const filePath = req.file ? req.file.path : null;
 
-    if (!file) {
-      return res.status(400).json({ error: 'Brak pliku z bitem.' });
+    if (!title || !price || !filePath) {
+      return res.status(400).json({ error: 'Podaj tytuł, cenę i plik.' });
     }
-
-    if (!title || !price) {
-      return res.status(400).json({ error: 'Podaj tytuł i cenę.' });
-    }
-
-    const filePath = `/uploads/${file.filename}`;
 
     const sql =
       'INSERT INTO beats (user_id, title, price, file_path) VALUES (?, ?, ?, ?)';
-    db.run(
-      sql,
-      [req.user.id, title, price, filePath],
-      function (err) {
-        if (err) {
-          console.error(err);
-          return res
-            .status(500)
-            .json({ error: 'Błąd bazy danych przy zapisie beata.' });
-        }
 
-        return res.status(201).json({
-          message: 'Beat zapisany.',
-          beat: {
-            id: this.lastID,
-            user_id: req.user.id,
-            title,
-            price,
-            file_path: filePath,
-          },
-        });
+    db.run(sql, [req.user.userId, title, price, filePath], function (err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Błąd serwera przy zapisie bitu.' });
       }
-    );
+
+      res.status(201).json({
+        message: 'Beat zapisany.',
+        beatId: this.lastID
+      });
+    });
   }
 );
 
-// ===== LISTA WSZYSTKICH BITÓW (PUBLICZNE) =====
-
-app.get('/api/beats', (req, res) => {
-  const sql = `
-    SELECT beats.*, users.email AS owner_email
-    FROM beats
-    LEFT JOIN users ON beats.user_id = users.id
-    ORDER BY beats.id DESC
-  `;
+// ===== LISTA BITÓW (publiczna) =====
+app.get('/beats', (req, res) => {
+  const sql = 'SELECT * FROM beats';
 
   db.all(sql, [], (err, rows) => {
     if (err) {
       console.error(err);
-      return res
-        .status(500)
-        .json({ error: 'Błąd bazy danych przy pobieraniu beatów.' });
+      return res.status(500).json({ error: 'Błąd serwera przy pobieraniu bitów.' });
     }
 
-    return res.json(rows);
+    res.json(rows);
   });
 });
 
-// ===== PROSTY TEST (np. do sprawdzenia w przeglądarce) =====
-
-app.get('/api', (req, res) => {
-  res.send('Backend działa 🔥');
-});
-
-// ===== SPA FALLBACK – zawsze zwracaj index.html dla innych ścieżek =====
-
-app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+// ===== SPA FALLBACK – ZAWSZE ZWRACA index.html =====
+// UWAGA: żadnych '*', żadnych '/*', tylko app.use NA KOŃCU
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
 // ===== START SERWERA =====
-
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Serwer działa na http://localhost:${PORT}`);
 });
