@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Moje Bity</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Panel Bitów 🎵</h1>
+
+<h2>Rejestracja</h2>
+<input id="reg_email" type="email" placeholder="Email"><br>
+<input id="reg_pass" type="password" placeholder="Hasło"><br>
+<button onclick="register()">Zarejestruj</button>
+
+<h2>Logowanie</h2>
+<input id="log_email" type="email" placeholder="Email"><br>
+<input id="log_pass" type="password" placeholder="Hasło"><br>
+<button onclick="login()">Zaloguj</button>
+
+<h2>Upload bitu</h2>
+<input id="beat_title" placeholder="Tytuł"><br>
+<input id="beat_price" type="number" placeholder="Cena"><br>
+<input id="beat_file" type="file"><br>
+<button onclick="uploadBeat()">Wyślij bit</button>
+
+<hr>
+
+<h2>Dostępne bity</h2>
+<div id="beats_list">Wczytywanie...</div>
+
+<script src="script.js"></script>
+</body>
+</html>
