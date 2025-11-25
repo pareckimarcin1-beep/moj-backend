@@ -61,10 +61,19 @@ app.get('/api/health', (req, res) => {
 
 // ===== REJESTRACJA UŻYTKOWNIKA =====
 app.post('/register', (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, confirmPassword, notRobot } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Podaj email i hasło.' });
+  // podstawowe sprawdzenia
+  if (!email || !password || !confirmPassword) {
+    return res.status(400).json({ error: 'Podaj email i dwukrotnie hasło.' });
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(400).json({ error: 'Hasła nie są takie same.' });
+  }
+
+  if (!notRobot) {
+    return res.status(400).json({ error: 'Potwierdź, że nie jesteś robotem.' });
   }
 
   // sprawdź, czy email już istnieje

@@ -3,113 +3,98 @@
 <head>
   <meta charset="UTF-8" />
   <title>Strona do sprzedaży bitów</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- =========================
-       WERYFIKACJA WIEKU 16/18+
-       ========================= -->
-  <div id="age-overlay" class="age-overlay">
-    <div class="age-box">
+
+  <!-- OVERLAY Z WERYFIKACJĄ WIEKU -->
+  <div id="age-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); color:#fff; display:flex; align-items:center; justify-content:center; z-index:9999;">
+    <div style="max-width:400px; padding:20px; background:#111; border-radius:8px; text-align:center;">
       <h2>Weryfikacja wieku</h2>
-      <p>
-        Ta strona jest przeznaczona dla osób powyżej 16 / 18 roku życia.<br />
-        Czy masz co najmniej 16 lat?
-      </p>
-      <div class="age-buttons">
-        <button id="age-yes">Tak, mam</button>
-        <button id="age-no">Nie mam</button>
+      <p>Ta strona jest przeznaczona dla osób 16+ / 18+. Czy masz wymagany wiek?</p>
+      <div style="margin-top:20px; display:flex; gap:10px; justify-content:center;">
+        <button id="age-yes-btn">Tak</button>
+        <button id="age-no-btn">Nie</button>
       </div>
+      <p style="margin-top:10px; font-size:12px; opacity:0.7;">
+        Klikając "Tak" potwierdzasz, że masz wymagany wiek.
+      </p>
     </div>
   </div>
 
-  <!-- =========================
-       GŁÓWNA TREŚĆ STRONY
-       ========================= -->
-  <div id="main-content">
-    <header class="topbar">
-      <h1>Strona do sprzedaży bitów</h1>
-      <div id="user-info">
-        <span id="user-email-label"></span>
-        <button id="logout-btn" class="btn-secondary" style="display:none;">
-          Wyloguj
-        </button>
+  <!-- GŁÓWNA ZAWARTOŚĆ STRONY -->
+  <main id="page-content" style="display:none; max-width:900px; margin:0 auto; padding:20px;">
+    <h1>Strona do sprzedaży bitów</h1>
+
+    <section id="auth-section" style="display:flex; flex-wrap:wrap; gap:20px; margin-top:20px;">
+      <!-- REJESTRACJA -->
+      <div style="flex:1 1 280px; border:1px solid #ccc; border-radius:8px; padding:16px;">
+        <h2>Rejestracja</h2>
+        <form id="register-form">
+          <label>
+            Email
+            <input type="email" id="reg-email" required />
+          </label>
+          <br />
+
+          <label>
+            Hasło
+            <input type="password" id="reg-password" required minlength="6" />
+          </label>
+          <br />
+
+          <label>
+            Powtórz hasło
+            <input type="password" id="reg-password2" required minlength="6" />
+          </label>
+          <br />
+
+          <label style="display:flex; align-items:center; gap:6px; margin:8px 0;">
+            <input type="checkbox" id="reg-not-robot" />
+            Nie jestem robotem
+          </label>
+
+          <button type="submit">Załóż konto</button>
+
+          <button type="button" id="google-register-btn" style="margin-top:8px;">
+            Załóż konto przez Google (wkrótce)
+          </button>
+
+          <div id="reg-message" style="margin-top:8px; font-size:14px;"></div>
+        </form>
       </div>
-    </header>
 
-    <main class="container">
-      <!-- BLOK LOGOWANIA / REJESTRACJI -->
-      <section class="card">
-        <h2>Konto</h2>
-
-        <div class="tabs">
-          <button class="tab-btn active" data-tab="login">Logowanie</button>
-          <button class="tab-btn" data-tab="register">Rejestracja</button>
-        </div>
-
-        <!-- Logowanie -->
-        <form id="login-form" class="tab-content active">
+      <!-- LOGOWANIE -->
+      <div style="flex:1 1 280px; border:1px solid #ccc; border-radius:8px; padding:16px;">
+        <h2>Logowanie</h2>
+        <form id="login-form">
           <label>
             Email
             <input type="email" id="login-email" required />
           </label>
+          <br />
+
           <label>
             Hasło
             <input type="password" id="login-password" required />
           </label>
-          <button type="submit" class="btn-primary">Zaloguj</button>
+          <br />
+
+          <button type="submit">Zaloguj</button>
+
+          <div id="login-message" style="margin-top:8px; font-size:14px;"></div>
         </form>
+      </div>
+    </section>
 
-        <!-- Rejestracja -->
-        <form id="register-form" class="tab-content">
-          <label>
-            Email
-            <input type="email" id="register-email" required />
-          </label>
-          <label>
-            Hasło
-            <input type="password" id="register-password" required />
-          </label>
-          <button type="submit" class="btn-primary">Zarejestruj</button>
-        </form>
-
-        <p id="auth-message" class="message"></p>
-      </section>
-
-      <!-- BLOK UPLOADU BITÓW (tylko po zalogowaniu) -->
-      <section class="card">
-        <h2>Dodaj swój bit (mp3 / wav)</h2>
-        <form id="upload-form">
-          <label>
-            Tytuł bitu
-            <input type="text" id="beat-title" required />
-          </label>
-          <label>
-            Cena (PLN)
-            <input type="number" step="0.01" id="beat-price" required />
-          </label>
-          <label>
-            Plik audio
-            <input type="file" id="beat-file" accept=".mp3,.wav" required />
-          </label>
-          <button type="submit" class="btn-primary">Wyślij bit</button>
-        </form>
-        <p id="upload-message" class="message"></p>
-      </section>
-
-      <!-- LISTA BITÓW -->
-      <section class="card">
-        <h2>Dostępne bity</h2>
-        <button id="refresh-beats" class="btn-secondary small">
-          Odśwież listę
-        </button>
-        <div id="beats-list" class="beats-list">
-          <!-- tutaj JS wstawi listę bitów -->
-        </div>
-      </section>
-    </main>
-  </div>
+    <!-- Tu możesz mieć resztę strony: lista bitów itd. -->
+    <section id="beats-section" style="margin-top:30px;">
+      <h2>Dostępne bity</h2>
+      <button id="load-beats-btn">Odśwież listę bitów</button>
+      <ul id="beats-list"></ul>
+    </section>
+  </main>
 
   <script src="script.js"></script>
 </body>
