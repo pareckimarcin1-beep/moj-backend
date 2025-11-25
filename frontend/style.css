@@ -1,17 +1,284 @@
+/* Reset trochę marginesów itd. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
-    background: #111;
-    color: white;
-    font-family: Arial;
-    padding: 20px;
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #050816;
+  color: #f9fafb;
 }
 
-input, button {
-    margin: 5px;
-    padding: 8px;
+/* GÓRNY PASEK */
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #020617;
+  border-bottom: 1px solid #111827;
 }
 
-.beat {
-    border: 1px solid #444;
-    padding: 10px;
-    margin: 10px 0;
+.topbar h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+#user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* GŁÓWNA SIATKA */
+
+.container {
+  max-width: 960px;
+  margin: 24px auto 40px;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+.card {
+  background: #020617;
+  border: 1px solid #111827;
+  border-radius: 12px;
+  padding: 20px 18px 22px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.card h2 {
+  margin-top: 0;
+  margin-bottom: 14px;
+  font-size: 18px;
+}
+
+/* Formularze */
+
+label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+input[type="email"],
+input[type="password"],
+input[type="text"],
+input[type="number"],
+input[type="file"] {
+  width: 100%;
+  margin-top: 4px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #1f2937;
+  background: #020617;
+  color: #f9fafb;
+}
+
+input::file-selector-button {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-right: 8px;
+  background: #1d4ed8;
+  color: white;
+  cursor: pointer;
+}
+
+/* Przyciski */
+
+.btn-primary,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.btn-primary {
+  background: #22c55e;
+  color: #020617;
+}
+
+.btn-primary:hover {
+  background: #16a34a;
+}
+
+.btn-secondary {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.btn-secondary:hover {
+  background: #1f2937;
+}
+
+.btn-secondary.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Zakładki logowanie/rejestracja */
+
+.tabs {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #020617;
+  border: 1px solid #111827;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  border: none;
+  padding: 6px 16px;
+  cursor: pointer;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #9ca3af;
+  background: transparent;
+}
+
+.tab-btn.active {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Komunikaty */
+
+.message {
+  min-height: 18px;
+  font-size: 13px;
+  margin-top: 8px;
+  color: #e5e7eb;
+}
+
+.message.error {
+  color: #fca5a5;
+}
+
+.message.success {
+  color: #6ee7b7;
+}
+
+/* Lista bitów */
+
+.beats-list {
+  margin-top: 12px;
+  border-radius: 10px;
+  border: 1px solid #111827;
+  background: #020617;
+  padding: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.beat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid #111827;
+  font-size: 14px;
+}
+
+.beat-row:last-child {
+  border-bottom: none;
+}
+
+.beat-title {
+  font-weight: 500;
+}
+
+.beat-meta {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* ===========================
+   WERYFIKACJA WIEKU (OVERLAY)
+   =========================== */
+
+.age-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.age-box {
+  background: #020617;
+  border-radius: 12px;
+  padding: 20px 22px;
+  max-width: 360px;
+  width: 90%;
+  text-align: center;
+  border: 1px solid #111827;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.65);
+}
+
+.age-box h2 {
+  margin: 0 0 10px;
+}
+
+.age-box p {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.age-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.age-buttons button {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+#age-yes {
+  background: #22c55e;
+  color: #020617;
+}
+
+#age-yes:hover {
+  background: #16a34a;
+}
+
+#age-no {
+  background: #ef4444;
+  color: #f9fafb;
+}
+
+#age-no:hover {
+  background: #dc2626;
 }
