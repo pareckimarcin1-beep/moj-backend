@@ -1,19 +1,19 @@
-// database.js
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// baza w pliku moja_baza.db w katalogu projektu
 const dbPath = path.join(__dirname, 'moja_baza.db');
 const db = new sqlite3.Database(dbPath);
 
-// Tworzenie tabel, jeśli nie istnieją
 db.serialize(() => {
   // Tabela użytkowników
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE,
-      password TEXT
+      password_hash TEXT,
+      is_verified INTEGER DEFAULT 0,
+      verification_token TEXT,
+      verification_expires INTEGER
     )
   `);
 

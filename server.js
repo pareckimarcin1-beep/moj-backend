@@ -1,204 +1,255 @@
-// server.js
 const express = require('express');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const multer = require('multer');
 const path = require('path');
+const bcrypt = require('bcrypt');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+
 const db = require('./database');
 
 const app = express();
-
-// PORT dla lokalnie i dla Rendera
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'super_tajny_klucz_123';
 
 // ===== MIDDLEWARE =====
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
-// statyczne pliki z frontendu (HTML, CSS, JS, obrazki itd.)
+// serwujemy frontend
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// ===== KONFIGURACJA MULTER (upload bitów) =====
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, 'uploads'));
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
+// Logowanie KAŻDEGO requestu - do debugowania
+app.use((req, res, next) => {
+  console.log('REQ:', req.method, req.url);
+  next();
 });
 
-const upload = multer({ storage });
+// serwujemy frontend
+app.use(express.static(path.join(__dirname, 'frontend')));
 
-// ===== FUNKCJA AUTORYZACJI (JWT) =====
-function authMiddleware(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: 'Brak tokenu.' });
+// ===== JWT =====
+const JWT_SECRET = process.env.JWT_SECRET || 'DEV_SECRET_ZMIEN_TO';
+const JWT_EXPIRES_IN = '7d';
+
+function createJwtToken(user) {
+  // zapisujemy w tokenie id i email
+  return jwt.sign(
+    { id: user.id, email: user.email },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+}
+
+function authRequired(req, res, next) {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).json({ error: 'Brak tokenu. Zaloguj się.' });
   }
 
-  const token = authHeader.replace('Bearer ', '');
-
-  jwt.verify(token, JWT_SECRET, (err, payload) => {
-    if (err) {
-      return res.status(401).json({ error: 'Nieprawidłowy token.' });
-    }
-
-    // zapisujemy info o userze do req
-    req.user = {
-      userId: payload.userId,
-      email: payload.email
-    };
-
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = payload;
     next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Nieprawidłowy lub wygasły token.' });
+  }
+}
+
+// ===== MAIL (na razie: albo SMTP, albo link w konsoli) =====
+let transporter = null;
+
+if (process.env.SMTP_HOST) {
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
   });
 }
 
-// ===== PROSTY ENDPOINT TESTOWY API =====
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, message: 'Backend działa 🔥' });
-});
+async function sendVerificationEmail(userEmail, token) {
+  const appUrl = process.env.APP_URL || 'http://localhost:' + PORT;
+  const verifyUrl = `${appUrl}/api/verify-email?token=${encodeURIComponent(token)}`;
 
-// ===== REJESTRACJA UŻYTKOWNIKA =====
-app.post('/register', (req, res) => {
-  const { email, password, confirmPassword, notRobot } = req.body;
+  // Jeśli nie ma skonfigurowanego SMTP – po prostu wypisz link w konsoli
+  if (!transporter) {
+    console.log('=== LINK WERYFIKACYJNY DLA', userEmail, '===');
+    console.log(verifyUrl);
+    console.log('===========================================');
+    return;
+  }
 
-  // podstawowe sprawdzenia
+  const mailOptions = {
+    from: `"Twoja Aplikacja" <${process.env.SMTP_USER}>`,
+    to: userEmail,
+    subject: 'Aktywacja konta',
+    text: `Kliknij, aby aktywować konto: ${verifyUrl}`,
+    html: `
+      <p>Cześć!</p>
+      <p>Kliknij poniższy link, aby aktywować konto:</p>
+      <p><a href="${verifyUrl}">${verifyUrl}</a></p>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+// ===== REJESTRACJA =====
+app.post('/api/register', async (req, res) => {
+  console.log('PRZYSZŁO /api/register', req.body);
+
+  const { email, password, confirmPassword } = req.body;
+
   if (!email || !password || !confirmPassword) {
-    return res.status(400).json({ error: 'Podaj email i dwukrotnie hasło.' });
+    return res.status(400).json({ error: 'Wypełnij wszystkie pola.' });
   }
 
   if (password !== confirmPassword) {
     return res.status(400).json({ error: 'Hasła nie są takie same.' });
   }
 
-  if (!notRobot) {
-    return res.status(400).json({ error: 'Potwierdź, że nie jesteś robotem.' });
-  }
-
-  // sprawdź, czy email już istnieje
-  const sqlCheck = 'SELECT id FROM users WHERE email = ?';
-  db.get(sqlCheck, [email], (err, row) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Błąd serwera przy sprawdzaniu użytkownika.' });
-    }
-
-    if (row) {
-      return res.status(409).json({ error: 'Użytkownik z takim mailem już istnieje.' });
-    }
-
-    // hashujemy hasło
-    bcrypt.hash(password, 10, (hashErr, hash) => {
-      if (hashErr) {
-        console.error(hashErr);
-        return res.status(500).json({ error: 'Błąd serwera przy haszowaniu hasła.' });
-      }
-
-      const sqlInsert = 'INSERT INTO users (email, password) VALUES (?, ?)';
-      db.run(sqlInsert, [email, hash], function (insertErr) {
-        if (insertErr) {
-          console.error(insertErr);
-          return res.status(500).json({ error: 'Błąd serwera przy zapisie użytkownika.' });
-        }
-
-        return res.status(201).json({ message: 'Utworzono użytkownika.' });
+  try {
+    // Czy taki email już istnieje?
+    const existingUser = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
       });
     });
-  });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'Użytkownik z takim emailem już istnieje.' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const expires = Date.now() + 24 * 60 * 60 * 1000; // 24h
+
+    const userId = await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO users (email, password_hash, is_verified, verification_token, verification_expires)
+         VALUES (?, ?, 0, ?, ?)`,
+        [email, passwordHash, verificationToken, expires],
+        function (err) {
+          if (err) reject(err);
+          else resolve(this.lastID);
+        }
+      );
+    });
+
+    await sendVerificationEmail(email, verificationToken);
+
+    res.json({
+      message: 'Konto utworzone. Sprawdź maila (albo konsolę serwera) i kliknij link aktywacyjny.',
+      userId,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Błąd serwera przy rejestracji.' });
+  }
 });
 
-// ===== LOGOWANIE UŻYTKOWNIKA =====
-app.post('/login', (req, res) => {
+// ===== WERYFIKACJA MAILA =====
+app.get('/api/verify-email', (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).send('Brak tokenu.');
+  }
+
+  db.get(
+    'SELECT * FROM users WHERE verification_token = ?',
+    [token],
+    (err, user) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).send('Błąd serwera.');
+      }
+
+      if (!user) {
+        return res.status(400).send('Nieprawidłowy token.');
+      }
+
+      if (!user.verification_expires || user.verification_expires < Date.now()) {
+        return res.status(400).send('Token wygasł. Zarejestruj się ponownie.');
+      }
+
+      db.run(
+        `UPDATE users
+         SET is_verified = 1,
+             verification_token = NULL,
+             verification_expires = NULL
+         WHERE id = ?`,
+        [user.id],
+        (err2) => {
+          if (err2) {
+            console.error(err2);
+            return res.status(500).send('Błąd serwera przy aktualizacji.');
+          }
+
+          res.send('Email zweryfikowany! Możesz się zalogować.');
+        }
+      );
+    }
+  );
+});
+
+// ===== LOGOWANIE =====
+app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Podaj email i hasło.' });
   }
 
-  const sql = 'SELECT * FROM users WHERE email = ?';
-  db.get(sql, [email], (err, user) => {
+  db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
     if (err) {
       console.error(err);
-      return res.status(500).json({ error: 'Błąd serwera przy logowaniu.' });
+      return res.status(500).json({ error: 'Błąd serwera.' });
     }
 
     if (!user) {
-      return res.status(401).json({ error: 'Nieprawidłowe dane logowania.' });
+      return res.status(400).json({ error: 'Nieprawidłowe dane logowania.' });
     }
 
-    bcrypt.compare(password, user.password, (bcryptErr, isMatch) => {
-      if (bcryptErr) {
-        console.error(bcryptErr);
-        return res.status(500).json({ error: 'Błąd serwera przy sprawdzaniu hasła.' });
-      }
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
+      return res.status(400).json({ error: 'Nieprawidłowe dane logowania.' });
+    }
 
-      if (!isMatch) {
-        return res.status(401).json({ error: 'Nieprawidłowe dane logowania.' });
-      }
+    if (!user.is_verified) {
+      return res.status(403).json({ error: 'Email nie został zweryfikowany.' });
+    }
 
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
+    const token = createJwtToken(user);
 
-      return res.json({ message: 'Zalogowano.', token });
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: false, // na produkcji (Render + HTTPS) ustaw na true
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+
+    res.json({ message: 'Zalogowano pomyślnie.' });
   });
 });
 
-// ===== UPLOAD BITU (MP3/WAV) – chroniony JWT =====
-app.post(
-  '/beats/upload',
-  authMiddleware,
-  upload.single('beat_file'),
-  (req, res) => {
-    const { title, price } = req.body;
-    const filePath = req.file ? req.file.path : null;
-
-    if (!title || !price || !filePath) {
-      return res.status(400).json({ error: 'Podaj tytuł, cenę i plik.' });
-    }
-
-    const sql =
-      'INSERT INTO beats (user_id, title, price, file_path) VALUES (?, ?, ?, ?)';
-
-    db.run(sql, [req.user.userId, title, price, filePath], function (err) {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ error: 'Błąd serwera przy zapisie bitu.' });
-      }
-
-      res.status(201).json({
-        message: 'Beat zapisany.',
-        beatId: this.lastID
-      });
-    });
-  }
-);
-
-// ===== LISTA BITÓW (publiczna) =====
-app.get('/beats', (req, res) => {
-  const sql = 'SELECT * FROM beats';
-
-  db.all(sql, [], (err, rows) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Błąd serwera przy pobieraniu bitów.' });
-    }
-
-    res.json(rows);
-  });
+// ===== WYLOGOWANIE =====
+app.post('/api/logout', (req, res) => {
+  res.clearCookie('token');
+  res.json({ message: 'Wylogowano.' });
 });
 
-// ===== SPA FALLBACK – ZAWSZE ZWRACA index.html =====
-// UWAGA: żadnych '*', żadnych '/*', tylko app.use NA KOŃCU
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+// ===== PRYWATNY ENDPOINT (TEST) =====
+app.get('/api/secret', authRequired, (req, res) => {
+  res.json({ message: `Witaj użytkowniku o id ${req.user.id} i emailu ${req.user.email}` });
 });
 
 // ===== START SERWERA =====
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Serwer działa na http://localhost:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Serwer działa na porcie ${PORT}`);
 });

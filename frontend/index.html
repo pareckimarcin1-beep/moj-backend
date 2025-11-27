@@ -31,22 +31,40 @@
       <!-- REJESTRACJA -->
       <div style="flex:1 1 280px; border:1px solid #ccc; border-radius:8px; padding:16px;">
         <h2>Rejestracja</h2>
-        <form id="register-form">
+        <form id="register-form" autocomplete="off">
           <label>
             Email
-            <input type="email" id="reg-email" required />
+            <input
+              id="register-email"
+              name="email"
+              type="email"
+              autocomplete="new-email"
+              required
+            />
           </label>
           <br />
 
           <label>
             Hasło
-            <input type="password" id="reg-password" required minlength="6" />
+            <input
+              id="register-password"
+              name="password"
+              type="password"
+              autocomplete="new-password"
+              required
+            />
           </label>
           <br />
 
           <label>
             Powtórz hasło
-            <input type="password" id="reg-password2" required minlength="6" />
+            <input
+              id="register-password2"
+              name="confirmPassword"
+              type="password"
+              autocomplete="new-password"
+              required
+            />
           </label>
           <br />
 
@@ -68,16 +86,28 @@
       <!-- LOGOWANIE -->
       <div style="flex:1 1 280px; border:1px solid #ccc; border-radius:8px; padding:16px;">
         <h2>Logowanie</h2>
-        <form id="login-form">
+        <form id="login-form" autocomplete="off">
           <label>
             Email
-            <input type="email" id="login-email" required />
+            <input
+              id="login-email"
+              name="email"
+              type="email"
+              autocomplete="off"
+              required
+            />
           </label>
           <br />
 
           <label>
             Hasło
-            <input type="password" id="login-password" required />
+            <input
+              id="login-password"
+              name="password"
+              type="password"
+              autocomplete="off"
+              required
+            />
           </label>
           <br />
 
@@ -88,7 +118,7 @@
       </div>
     </section>
 
-    <!-- Tu możesz mieć resztę strony: lista bitów itd. -->
+    <!-- Reszta strony: lista bitów itd. -->
     <section id="beats-section" style="margin-top:30px;">
       <h2>Dostępne bity</h2>
       <button id="load-beats-btn">Odśwież listę bitów</button>
