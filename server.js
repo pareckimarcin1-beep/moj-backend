@@ -15,9 +15,9 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'DEV_SECRET_ZMIEN_TO';
 const JWT_EXPIRES_IN = '7d';
 
-// ⚠ RECAPTCHA_SECRET – na produkcji lepiej trzymać TYLKO w ENV
+// reCAPTCHA – na produkcji najlepiej przez ENV
 const RECAPTCHA_SECRET =
-  process.env.RECAPTCHA_SECRET || '6Lf0chksAAAAAI6GiC-4J00hsvOM4xYE5RLX5qE2';
+  process.env.RECAPTCHA_SECRET || '6Lf0chksAAAAAIgGlCIC-4J0OhsVOM4xYESRLX5qE';
 
 // ===== MIDDLEWARE =====
 app.use(express.json());
@@ -74,7 +74,9 @@ if (process.env.SMTP_HOST) {
 
 async function sendVerificationEmail(userEmail, token) {
   const appUrl = process.env.APP_URL || 'http://localhost:' + PORT;
-  const verifyUrl = `${appUrl}/api/verify-email?token=${encodeURIComponent(token)}`;
+  const verifyUrl = `${appUrl}/api/verify-email?token=${encodeURIComponent(
+    token
+  )}`;
 
   if (!transporter) {
     console.log('=== LINK WERYFIKACYJNY DLA', userEmail, '===');
@@ -270,7 +272,7 @@ app.post('/api/login', (req, res) => {
 
     res.cookie('token', token, {
       httpOnly: true,
-      secure: false, // na produkcji (Render + HTTPS) ustaw na true
+      secure: false, // na produkcji z HTTPS ustaw na true
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -289,6 +291,17 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/secret', authRequired, (req, res) => {
   res.json({
     message: `Witaj użytkowniku o id ${req.user.id} i emailu ${req.user.email}`,
+  });
+});
+
+// (opcjonalnie) LISTA BITÓW – jeśli nie masz innej
+app.get('/beats', (req, res) => {
+  db.all('SELECT * FROM beats', [], (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Błąd pobierania bitów.' });
+    }
+    res.json(rows || []);
   });
 });
 
