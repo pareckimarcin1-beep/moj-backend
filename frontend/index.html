@@ -5,6 +5,9 @@
   <title>Strona do sprzedaży bitów</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
+
+  <!-- reCAPTCHA v2 -->
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
 
@@ -28,65 +31,39 @@
     <h1>Strona do sprzedaży bitów</h1>
 
     <section id="auth-section" style="display:flex; flex-wrap:wrap; gap:20px; margin-top:20px;">
+      
       <!-- REJESTRACJA -->
       <div style="flex:1 1 280px; border:1px solid #ccc; border-radius:8px; padding:16px;">
         <h2>Rejestracja</h2>
         <form id="register-form" autocomplete="off">
+
           <label>
             Email
-            <input
-              id="register-email"
-              name="email"
-              type="email"
-              autocomplete="new-email"
-              required
-            />
+            <input id="register-email" type="email" autocomplete="new-email" required />
           </label>
           <br />
 
           <label>
             Hasło
-            <input
-              id="register-password"
-              name="password"
-              type="password"
-              autocomplete="new-password"
-              required
-            />
+            <input id="register-password" type="password" autocomplete="new-password" required />
           </label>
           <br />
 
           <label>
             Powtórz hasło
-            <input
-              id="register-password2"
-              name="confirmPassword"
-              type="password"
-              autocomplete="new-password"
-              required
-            />
+            <input id="register-password2" type="password" autocomplete="new-password" required />
           </label>
           <br />
 
-          <label style="display:flex; align-items:center; gap:6px; margin:8px 0;">
-            <input type="checkbox" id="reg-not-robot" />
-            Nie jestem robotem (dodatkowy)
-          </label>
+          <!-- reCAPTCHA -->
+          <div class="g-recaptcha"
+               data-sitekey="6Lf0chksAAAAAAPFrzdJwoNoJpzPserf3fa_-fd3H"
+               style="margin-top:10px;"></div>
+
+          <div id="reg-message" style="margin-top:8px; font-size:14px;"></div>
 
           <button type="submit">Załóż konto</button>
 
-          <!-- reCAPTCHA v2 -->
-          <div
-            class="g-recaptcha"
-            data-sitekey="6Lf0chksAAAAAPFrzdJwoNoJpzPserf3fa_-fd3H"
-            style="margin-top:10px;"
-          ></div>
-
-          <button type="button" id="google-register-btn" style="margin-top:8px;">
-            Załóż konto przez Google (wkrótce)
-          </button>
-
-          <div id="reg-message" style="margin-top:8px; font-size:14px;"></div>
         </form>
       </div>
 
@@ -96,28 +73,14 @@
         <form id="login-form" autocomplete="off">
           <label>
             Email
-            <input
-              id="login-email"
-              name="email"
-              type="email"
-              autocomplete="off"
-              required
-            />
+            <input id="login-email" type="email" autocomplete="off" />
           </label>
           <br />
-
           <label>
             Hasło
-            <input
-              id="login-password"
-              name="password"
-              type="password"
-              autocomplete="off"
-              required
-            />
+            <input id="login-password" type="password" autocomplete="off" />
           </label>
           <br />
-
           <button type="submit">Zaloguj</button>
 
           <div id="login-message" style="margin-top:8px; font-size:14px;"></div>
@@ -125,16 +88,15 @@
       </div>
     </section>
 
-    <!-- LISTA BITÓW -->
+    <!-- Lista bitów -->
     <section id="beats-section" style="margin-top:30px;">
       <h2>Dostępne bity</h2>
       <button id="load-beats-btn">Odśwież listę bitów</button>
       <ul id="beats-list"></ul>
     </section>
+
   </main>
 
   <script src="script.js"></script>
-  <!-- skrypt reCAPTCHA -->
-  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </body>
 </html>
