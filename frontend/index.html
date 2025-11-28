@@ -70,10 +70,17 @@
 
           <label style="display:flex; align-items:center; gap:6px; margin:8px 0;">
             <input type="checkbox" id="reg-not-robot" />
-            Nie jestem robotem
+            Nie jestem robotem (dodatkowy)
           </label>
 
           <button type="submit">Załóż konto</button>
+
+          <!-- WIDŻET reCAPTCHA v2 -->
+          <div
+            class="g-recaptcha"
+            data-sitekey="6Lfo0hksAAAAAPFrzdJwoNoJpzPsefr3fa_-fd3H"
+            style="margin-top:10px;"
+          ></div>
 
           <button type="button" id="google-register-btn" style="margin-top:8px;">
             Załóż konto przez Google (wkrótce)
@@ -118,7 +125,7 @@
       </div>
     </section>
 
-    <!-- Reszta strony: lista bitów itd. -->
+    <!-- LISTA BITÓW -->
     <section id="beats-section" style="margin-top:30px;">
       <h2>Dostępne bity</h2>
       <button id="load-beats-btn">Odśwież listę bitów</button>
@@ -127,5 +134,7 @@
   </main>
 
   <script src="script.js"></script>
+  <!-- skrypt reCAPTCHA MUSI być załadowany -->
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </body>
 </html>

@@ -11,6 +11,14 @@ const db = require('./database');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ===== KONFIGURACJA =====
+const JWT_SECRET = process.env.JWT_SECRET || 'DEV_SECRET_ZMIEN_TO';
+const JWT_EXPIRES_IN = '7d';
+
+// ⚠ RECAPTCHA_SECRET – na produkcji lepiej trzymać TYLKO w ENV
+const RECAPTCHA_SECRET =
+  process.env.RECAPTCHA_SECRET || '6Lf0chksAAAAAI6GiC-4J00hsvOM4xYE5RLX5qE2';
+
 // ===== MIDDLEWARE =====
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -25,15 +33,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// serwujemy frontend
-app.use(express.static(path.join(__dirname, 'frontend')));
-
 // ===== JWT =====
-const JWT_SECRET = process.env.JWT_SECRET || 'DEV_SECRET_ZMIEN_TO';
-const JWT_EXPIRES_IN = '7d';
-
 function createJwtToken(user) {
-  // zapisujemy w tokenie id i email
   return jwt.sign(
     { id: user.id, email: user.email },
     JWT_SECRET,
@@ -56,7 +57,7 @@ function authRequired(req, res, next) {
   }
 }
 
-// ===== MAIL (na razie: albo SMTP, albo link w konsoli) =====
+// ===== MAIL (SMTP lub link w konsoli) =====
 let transporter = null;
 
 if (process.env.SMTP_HOST) {
@@ -75,7 +76,6 @@ async function sendVerificationEmail(userEmail, token) {
   const appUrl = process.env.APP_URL || 'http://localhost:' + PORT;
   const verifyUrl = `${appUrl}/api/verify-email?token=${encodeURIComponent(token)}`;
 
-  // Jeśli nie ma skonfigurowanego SMTP – po prostu wypisz link w konsoli
   if (!transporter) {
     console.log('=== LINK WERYFIKACYJNY DLA', userEmail, '===');
     console.log(verifyUrl);
@@ -102,8 +102,46 @@ async function sendVerificationEmail(userEmail, token) {
 app.post('/api/register', async (req, res) => {
   console.log('PRZYSZŁO /api/register', req.body);
 
-  const { email, password, confirmPassword } = req.body;
+  const { email, password, confirmPassword, recaptchaToken } = req.body;
 
+  // --- reCAPTCHA ---
+  if (!RECAPTCHA_SECRET) {
+    console.warn('Brak RECAPTCHA_SECRET – reCAPTCHA jest pomijana!');
+  } else {
+    if (!recaptchaToken) {
+      return res.status(400).json({ error: 'Brak tokenu reCAPTCHA.' });
+    }
+
+    try {
+      const params = new URLSearchParams();
+      params.append('secret', RECAPTCHA_SECRET);
+      params.append('response', recaptchaToken);
+
+      const googleRes = await fetch(
+        'https://www.google.com/recaptcha/api/siteverify',
+        {
+          method: 'POST',
+          body: params,
+        }
+      );
+
+      const googleData = await googleRes.json();
+      console.log('Wynik reCAPTCHA:', googleData);
+
+      if (!googleData.success) {
+        return res
+          .status(400)
+          .json({ error: 'Weryfikacja reCAPTCHA nie powiodła się.' });
+      }
+    } catch (err) {
+      console.error('Błąd przy sprawdzaniu reCAPTCHA:', err);
+      return res
+        .status(500)
+        .json({ error: 'Błąd przy weryfikacji reCAPTCHA.' });
+    }
+  }
+
+  // --- walidacja danych ---
   if (!email || !password || !confirmPassword) {
     return res.status(400).json({ error: 'Wypełnij wszystkie pola.' });
   }
@@ -122,7 +160,9 @@ app.post('/api/register', async (req, res) => {
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: 'Użytkownik z takim emailem już istnieje.' });
+      return res
+        .status(400)
+        .json({ error: 'Użytkownik z takim emailem już istnieje.' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -144,7 +184,8 @@ app.post('/api/register', async (req, res) => {
     await sendVerificationEmail(email, verificationToken);
 
     res.json({
-      message: 'Konto utworzone. Sprawdź maila (albo konsolę serwera) i kliknij link aktywacyjny.',
+      message:
+        'Konto utworzone. Sprawdź maila (albo konsolę serwera) i kliknij link aktywacyjny.',
       userId,
     });
   } catch (err) {
@@ -246,7 +287,9 @@ app.post('/api/logout', (req, res) => {
 
 // ===== PRYWATNY ENDPOINT (TEST) =====
 app.get('/api/secret', authRequired, (req, res) => {
-  res.json({ message: `Witaj użytkowniku o id ${req.user.id} i emailu ${req.user.email}` });
+  res.json({
+    message: `Witaj użytkowniku o id ${req.user.id} i emailu ${req.user.email}`,
+  });
 });
 
 // ===== START SERWERA =====
