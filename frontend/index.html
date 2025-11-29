@@ -11,7 +11,7 @@
 </head>
 <body>
 
-  <!-- OVERLAY Z WERYFIKACJĄ WIEKU -->
+  <!-- OVERLAY Z WIEKIEM -->
   <div id="age-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); color:#fff; display:flex; align-items:center; justify-content:center; z-index:9999;">
     <div style="max-width:400px; padding:20px; background:#111; border-radius:8px; text-align:center;">
       <h2>Weryfikacja wieku</h2>
@@ -26,17 +26,16 @@
     </div>
   </div>
 
-  <!-- GŁÓWNA ZAWARTOŚĆ STRONY -->
+  <!-- GŁÓWNA STRONA -->
   <main id="page-content" style="display:none; max-width:900px; margin:0 auto; padding:20px;">
     <h1>Strona do sprzedaży bitów</h1>
 
     <section id="auth-section" style="display:flex; flex-wrap:wrap; gap:20px; margin-top:20px;">
-      
+
       <!-- REJESTRACJA -->
       <div style="flex:1 1 280px; border:1px solid #ccc; border-radius:8px; padding:16px;">
         <h2>Rejestracja</h2>
         <form id="register-form" autocomplete="off">
-
           <label>
             Email
             <input id="register-email" type="email" autocomplete="new-email" required />
@@ -55,15 +54,14 @@
           </label>
           <br />
 
-          <!-- reCAPTCHA -->
+          <!-- reCAPTCHA v2 -->
           <div class="g-recaptcha"
-               data-sitekey="6Lf0chksAAAAAPFrzdJwoNoJpzPsefr3fa_-fd3H"
+               data-sitekey="6LfPZRssAAAAAKvcXbY8jN3UZyrEVYAluKAYTpXw"
                style="margin-top:10px;"></div>
 
           <div id="reg-message" style="margin-top:8px; font-size:14px;"></div>
 
           <button type="submit">Załóż konto</button>
-
         </form>
       </div>
 
@@ -88,13 +86,12 @@
       </div>
     </section>
 
-    <!-- Lista bitów -->
+    <!-- LISTA BITÓW -->
     <section id="beats-section" style="margin-top:30px;">
       <h2>Dostępne bity</h2>
       <button id="load-beats-btn">Odśwież listę bitów</button>
       <ul id="beats-list"></ul>
     </section>
-
   </main>
 
   <script src="script.js"></script>
