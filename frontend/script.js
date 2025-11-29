@@ -236,8 +236,14 @@ function initBeatsSection() {
 
 // ===== START PO ZAŁADOWANIU =====
 document.addEventListener('DOMContentLoaded', () => {
-  initAgeCheck();
-  initRegisterForm();
-  initLoginForm();
-  initBeatsSection();
+  // ...twoje initAgeCheck(), initRegisterForm() itd...
+
+  const googleBtn = document.getElementById('google-register-btn');
+  if (googleBtn) {
+    googleBtn.addEventListener('click', () => {
+      // przekierowanie do backendu (który wysyła cię do Google)
+      window.location.href = '/api/auth/google';
+    });
+  }
 });
+

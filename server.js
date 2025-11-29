@@ -8,7 +8,12 @@ const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const fetch = (...args) =>
+  import('node-fetch').then(({ default: fetch }) => fetch(...args));
+
+// DO GOOGLE LOGIN:
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
 const db = require('./database');
 
@@ -21,6 +26,9 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Passport (Google OAuth) – bez sesji
+app.use(passport.initialize());
 
 // Serwowanie frontendu
 app.use(express.static(path.join(__dirname, 'frontend')));
@@ -37,6 +45,13 @@ app.use((req, res, next) => {
 const JWT_SECRET = process.env.JWT_SECRET || 'DEV_SECRET_ZMIEN_TO';
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
+
+// Google OAuth – te wartości dodałeś w Render → Environment
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_REDIRECT_URI =
+  process.env.GOOGLE_REDIRECT_URI ||
+  `${APP_URL}/api/auth/google/callback`;
 
 // =========================
 //  JWT
@@ -80,20 +95,22 @@ if (process.env.SMTP_HOST) {
 
 // wysyłanie maila weryfikacyjnego
 async function sendVerificationEmail(userEmail, token) {
-  const verifyUrl = `${APP_URL}/api/verify-email?token=${encodeURIComponent(token)}`;
+  const verifyUrl = `${APP_URL}/api/verify-email?token=${encodeURIComponent(
+    token
+  )}`;
 
   if (!transporter) {
-    console.log("=== LINK WERYFIKACYJNY ===");
+    console.log('=== LINK WERYFIKACYJNY ===');
     console.log(userEmail, verifyUrl);
-    console.log("===========================");
+    console.log('===========================');
     return;
   }
 
   await transporter.sendMail({
     from: `"Twoja Aplikacja" <${process.env.SMTP_USER}>`,
     to: userEmail,
-    subject: "Aktywacja konta",
-    html: `<p>Kliknij link:</p><a href="${verifyUrl}">${verifyUrl}</a>`
+    subject: 'Aktywacja konta',
+    html: `<p>Kliknij link:</p><a href="${verifyUrl}">${verifyUrl}</a>`,
   });
 }
 
@@ -107,49 +124,52 @@ async function verifyRecaptcha(token) {
   params.append('secret', RECAPTCHA_SECRET);
   params.append('response', token);
 
-  const googleRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-    method: 'POST',
-    body: params
-  });
+  const googleRes = await fetch(
+    'https://www.google.com/recaptcha/api/siteverify',
+    {
+      method: 'POST',
+      body: params,
+    }
+  );
 
   const data = await googleRes.json();
-  console.log("reCAPTCHA wynik:", data);
+  console.log('reCAPTCHA wynik:', data);
 
   return data.success === true;
 }
 
 // =========================
-//  REJESTRACJA
+//  REJESTRACJA (formularz + email + reCAPTCHA)
 // =========================
 app.post('/api/register', async (req, res) => {
-  console.log("PRZYSZŁO /api/register", req.body);
+  console.log('PRZYSZŁO /api/register', req.body);
 
   const { email, password, confirmPassword, recaptchaToken } = req.body;
 
   if (!email || !password || !confirmPassword) {
-    return res.status(400).json({ error: "Wypełnij wszystkie pola." });
+    return res.status(400).json({ error: 'Wypełnij wszystkie pola.' });
   }
 
   if (password !== confirmPassword) {
-    return res.status(400).json({ error: "Hasła nie są takie same." });
+    return res.status(400).json({ error: 'Hasła nie są takie same.' });
   }
 
   // reCAPTCHA
   const captchaOK = await verifyRecaptcha(recaptchaToken);
   if (!captchaOK) {
-    return res.status(400).json({ error: "reCAPTCHA nie została zaliczona." });
+    return res.status(400).json({ error: 'reCAPTCHA nie została zaliczona.' });
   }
 
   try {
     const existing = await new Promise((resolve, reject) => {
-      db.get("SELECT * FROM users WHERE email = ?", [email], (err, row) => {
+      db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
     });
 
     if (existing) {
-      return res.status(400).json({ error: "Taki email już istnieje." });
+      return res.status(400).json({ error: 'Taki email już istnieje.' });
     }
 
     const hash = await bcrypt.hash(password, 10);
@@ -171,11 +191,10 @@ app.post('/api/register', async (req, res) => {
 
     await sendVerificationEmail(email, token);
 
-    res.json({ message: "Konto utworzone. Sprawdź maila.", userId });
-
+    res.json({ message: 'Konto utworzone. Sprawdź maila.', userId });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Błąd serwera." });
+    res.status(500).json({ error: 'Błąd serwera.' });
   }
 });
 
@@ -184,17 +203,17 @@ app.post('/api/register', async (req, res) => {
 // =========================
 app.get('/api/verify-email', (req, res) => {
   const { token } = req.query;
-  if (!token) return res.status(400).send("Brak tokenu.");
+  if (!token) return res.status(400).send('Brak tokenu.');
 
   db.get(
-    "SELECT * FROM users WHERE verification_token = ?",
+    'SELECT * FROM users WHERE verification_token = ?',
     [token],
     (err, user) => {
-      if (err) return res.status(500).send("Błąd serwera.");
-      if (!user) return res.status(400).send("Nieprawidłowy token.");
+      if (err) return res.status(500).send('Błąd serwera.');
+      if (!user) return res.status(400).send('Nieprawidłowy token.');
 
       if (user.verification_expires < Date.now()) {
-        return res.status(400).send("Token wygasł.");
+        return res.status(400).send('Token wygasł.');
       }
 
       db.run(
@@ -204,13 +223,13 @@ app.get('/api/verify-email', (req, res) => {
         [user.id]
       );
 
-      res.send("Email zweryfikowany! Możesz się zalogować.");
+      res.send('Email zweryfikowany! Możesz się zalogować.');
     }
   );
 });
 
 // =========================
-//  LOGOWANIE
+//  LOGOWANIE (formularz + reCAPTCHA)
 // =========================
 app.post('/api/login', async (req, res) => {
   const { email, password, recaptchaToken } = req.body;
@@ -222,9 +241,10 @@ app.post('/api/login', async (req, res) => {
   // --- reCAPTCHA ---
   const captchaOK = await verifyRecaptcha(recaptchaToken);
   if (!captchaOK) {
-    return res.status(400).json({ error: 'reCAPTCHA nie została zaliczona.' });
+    return res
+      .status(400)
+      .json({ error: 'reCAPTCHA nie została zaliczona.' });
   }
-  // -----------------
 
   db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
     if (err) {
@@ -242,7 +262,9 @@ app.post('/api/login', async (req, res) => {
     }
 
     if (!user.is_verified) {
-      return res.status(403).json({ error: 'Email nie został zweryfikowany.' });
+      return res
+        .status(403)
+        .json({ error: 'Email nie został zweryfikowany.' });
     }
 
     const token = createJwtToken(user);
@@ -259,11 +281,109 @@ app.post('/api/login', async (req, res) => {
 });
 
 // =========================
+//  GOOGLE OAUTH – KONFIGURACJA
+// =========================
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+      callbackURL: GOOGLE_REDIRECT_URI,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        const email =
+          profile.emails && profile.emails[0] && profile.emails[0].value;
+
+        if (!email) {
+          return done(new Error('Brak emaila w profilu Google.'));
+        }
+
+        // Szukamy użytkownika w bazie
+        let user = await new Promise((resolve, reject) => {
+          db.get(
+            'SELECT * FROM users WHERE email = ?',
+            [email],
+            (err, row) => {
+              if (err) reject(err);
+              else resolve(row);
+            }
+          );
+        });
+
+        // Jeśli nie ma – tworzymy konto z hasłem "GOOGLE_AUTH"
+        if (!user) {
+          const placeholderHash = await bcrypt.hash('GOOGLE_AUTH', 10);
+
+          const newId = await new Promise((resolve, reject) => {
+            db.run(
+              `INSERT INTO users (email, password_hash, is_verified, verification_token, verification_expires)
+               VALUES (?, ?, 1, NULL, NULL)`,
+              [email, placeholderHash],
+              function (err) {
+                if (err) reject(err);
+                else resolve(this.lastID);
+              }
+            );
+          });
+
+          user = { id: newId, email };
+        } else {
+          user = { id: user.id, email: user.email };
+        }
+
+        done(null, user);
+      } catch (err) {
+        done(err);
+      }
+    }
+  )
+);
+
+// =========================
+//  GOOGLE OAUTH – ROUTES
+// =========================
+
+// Start logowania przez Google
+app.get(
+  '/api/auth/google',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false,
+  })
+);
+
+// Callback z Google
+app.get(
+  '/api/auth/google/callback',
+  passport.authenticate('google', {
+    failureRedirect: '/',
+    session: false,
+  }),
+  (req, res) => {
+    // req.user pochodzi z done(null, user) w strategii
+    const user = req.user;
+
+    const token = createJwtToken(user);
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    // Po zalogowaniu wracamy na stronę główną
+    res.redirect('/');
+  }
+);
+
+// =========================
 //  WYLOGOWANIE
 // =========================
 app.post('/api/logout', (req, res) => {
   res.clearCookie('token');
-  res.json({ message: "Wylogowano." });
+  res.json({ message: 'Wylogowano.' });
 });
 
 // =========================
@@ -278,4 +398,6 @@ app.get('/api/secret', authRequired, (req, res) => {
 // =========================
 app.listen(PORT, () => {
   console.log(`Serwer działa na porcie ${PORT}`);
+  console.log('APP_URL:', APP_URL);
+  console.log('GOOGLE_REDIRECT_URI:', GOOGLE_REDIRECT_URI);
 });
