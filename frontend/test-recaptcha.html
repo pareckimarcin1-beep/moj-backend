@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test reCAPTCHA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- WAŻNE: skrypt reCAPTCHA v2 -->
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+<body style="background:#111; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
+
+  <h1>Test reCAPTCHA</h1>
+  <p>Jeśli tu działa, to problem nie jest w kodzie.</p>
+
+  <form id="test-form">
+    <div
+      class="g-recaptcha"
+      data-sitekey="6LfPZRssAAAAAKvcXbY8jN3UZyrEVYAluKAYTpXw">
+    </div>
+
+    <br />
+    <button type="submit">Wyślij</button>
+  </form>
+
+  <p id="msg"></p>
+
+  <script>
+    document.getElementById('test-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const msg = document.getElementById('msg');
+
+      if (typeof grecaptcha === 'undefined') {
+        msg.textContent = 'grecaptcha nie jest załadowana.';
+        msg.style.color = 'red';
+        return;
+      }
+
+      const token = grecaptcha.getResponse();
+      if (!token) {
+        msg.textContent = 'Najpierw kliknij "Nie jestem robotem".';
+        msg.style.color = 'red';
+        return;
+      }
+
+      msg.textContent = 'OK, reCAPTCHA na froncie działa (token jest).';
+      msg.style.color = 'lime';
+    });
+  </script>
+</body>
+</html>
