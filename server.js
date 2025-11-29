@@ -212,30 +212,49 @@ app.get('/api/verify-email', (req, res) => {
 // =========================
 //  LOGOWANIE
 // =========================
-app.post('/api/login', (req, res) => {
-  const { email, password } = req.body;
+app.post('/api/login', async (req, res) => {
+  const { email, password, recaptchaToken } = req.body;
 
-  db.get("SELECT * FROM users WHERE email = ?", [email], async (err, user) => {
-    if (err) return res.status(500).json({ error: "Błąd serwera." });
-    if (!user) return res.status(400).json({ error: "Nieprawidłowe dane." });
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Podaj email i hasło.' });
+  }
 
-    const ok = await bcrypt.compare(password, user.password_hash);
-    if (!ok) return res.status(400).json({ error: "Nieprawidłowe dane." });
+  // --- reCAPTCHA ---
+  const captchaOK = await verifyRecaptcha(recaptchaToken);
+  if (!captchaOK) {
+    return res.status(400).json({ error: 'reCAPTCHA nie została zaliczona.' });
+  }
+  // -----------------
+
+  db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Błąd serwera.' });
+    }
+
+    if (!user) {
+      return res.status(400).json({ error: 'Nieprawidłowe dane logowania.' });
+    }
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
+      return res.status(400).json({ error: 'Nieprawidłowe dane logowania.' });
+    }
 
     if (!user.is_verified) {
-      return res.status(403).json({ error: "Email niezweryfikowany!" });
+      return res.status(403).json({ error: 'Email nie został zweryfikowany.' });
     }
 
     const token = createJwtToken(user);
 
     res.cookie('token', token, {
       httpOnly: true,
-      secure: false,
+      secure: false, // na produkcji z HTTPS możesz dać true
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.json({ message: "Zalogowano!" });
+    res.json({ message: 'Zalogowano pomyślnie.' });
   });
 });
 

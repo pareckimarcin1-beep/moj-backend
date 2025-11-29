@@ -136,15 +136,16 @@ function initRegisterForm() {
 // ===== LOGOWANIE =====
 function initLoginForm() {
   const form = document.getElementById('login-form');
-  if (!form) return;
-
   const emailInput = document.getElementById('login-email');
   const passInput = document.getElementById('login-password');
   const msg = document.getElementById('login-message');
 
+  if (!form) return;
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (msg) msg.textContent = '';
+    msg.textContent = '';
+    msg.style.color = 'inherit';
 
     const email = emailInput.value.trim();
     const password = passInput.value;
@@ -155,29 +156,41 @@ function initLoginForm() {
       return;
     }
 
+    // --- reCAPTCHA ---
+    if (typeof grecaptcha === 'undefined') {
+      msg.textContent = 'Błąd reCAPTCHA (skrypt się nie załadował). Odśwież stronę.';
+      msg.style.color = 'red';
+      return;
+    }
+
+    const recaptchaToken = grecaptcha.getResponse();
+    if (!recaptchaToken) {
+      msg.textContent = 'Potwierdź reCAPTCHA (kliknij "Nie jestem robotem").';
+      msg.style.color = 'red';
+      return;
+    }
+    // -----------------
+
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, recaptchaToken })
       });
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (e) {}
+      const data = await res.json();
 
       if (!res.ok) {
         msg.textContent = data.error || 'Błędne dane logowania.';
         msg.style.color = 'red';
-        console.error('Błąd logowania:', data);
         return;
       }
 
-      msg.textContent = data.message || 'Zalogowano pomyślnie.';
+      msg.textContent = 'Zalogowano pomyślnie.';
       msg.style.color = 'green';
 
-      console.log('Zalogowano, odpowiedź backendu:', data);
+      // czyścimy captcha po udanym logowaniu
+      grecaptcha.reset();
     } catch (err) {
       console.error(err);
       msg.textContent = 'Błąd połączenia z serwerem.';

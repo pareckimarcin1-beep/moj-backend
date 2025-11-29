@@ -67,22 +67,33 @@
 
       <!-- LOGOWANIE -->
       <div style="flex:1 1 280px; border:1px solid #ccc; border-radius:8px; padding:16px;">
-        <h2>Logowanie</h2>
-        <form id="login-form" autocomplete="off">
-          <label>
-            Email
-            <input id="login-email" type="email" autocomplete="off" />
-          </label>
-          <br />
-          <label>
-            Hasło
-            <input id="login-password" type="password" autocomplete="off" />
-          </label>
-          <br />
-          <button type="submit">Zaloguj</button>
+  <h2>Logowanie</h2>
+  <form id="login-form" autocomplete="off">
+    <label>
+      Email
+      <input id="login-email" type="email" autocomplete="off" />
+    </label>
+    <br />
 
-          <div id="login-message" style="margin-top:8px; font-size:14px;"></div>
-        </form>
+    <label>
+      Hasło
+      <input id="login-password" type="password" autocomplete="off" />
+    </label>
+    <br />
+
+    <!-- reCAPTCHA dla logowania -->
+    <div
+      class="g-recaptcha"
+      data-sitekey="6Lf0chksAAAAAPFrzdJwoNoJpzPsefr3fa_-fd3H"
+      style="margin-top:10px;">
+    </div>
+
+    <button type="submit">Zaloguj</button>
+
+    <div id="login-message" style="margin-top:8px; font-size:14px;"></div>
+  </form>
+</div>
+
       </div>
     </section>
 
