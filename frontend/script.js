@@ -1,36 +1,39 @@
-// script.js
-
-// ===== WERYFIKACJA WIEKU =====
+// =========================
+//  WERYFIKACJA WIEKU
+// =========================
 function initAgeCheck() {
   const overlay = document.getElementById('age-overlay');
   const page = document.getElementById('page-content');
-
-  const already = localStorage.getItem('ageVerified');
-  if (already === 'true') {
-    if (overlay) overlay.style.display = 'none';
-    if (page) page.style.display = 'block';
-    return;
-  }
-
   const yesBtn = document.getElementById('age-yes-btn');
   const noBtn = document.getElementById('age-no-btn');
 
-  if (yesBtn) {
-    yesBtn.addEventListener('click', () => {
-      localStorage.setItem('ageVerified', 'true');
-      if (overlay) overlay.style.display = 'none';
-      if (page) page.style.display = 'block';
-    });
+  // Jeśli czegoś brakuje – nie rób nic, nie wywalaj błędu
+  if (!overlay || !page || !yesBtn || !noBtn) {
+    console.warn('Age check elements not found – skipping.');
+    return;
   }
 
-  if (noBtn) {
-    noBtn.addEventListener('click', () => {
-      window.location.href = 'https://google.com';
-    });
+  const already = localStorage.getItem('ageVerified');
+  if (already === 'true') {
+    overlay.style.display = 'none';
+    page.style.display = 'block';
+    return;
   }
+
+  yesBtn.addEventListener('click', () => {
+    localStorage.setItem('ageVerified', 'true');
+    overlay.style.display = 'none';
+    page.style.display = 'block';
+  });
+
+  noBtn.addEventListener('click', () => {
+    window.location.href = 'https://google.com';
+  });
 }
 
-// ===== REJESTRACJA + reCAPTCHA =====
+// =========================
+//  REJESTRACJA
+// =========================
 function initRegisterForm() {
   const form = document.getElementById('register-form');
   if (!form) return;
@@ -48,10 +51,10 @@ function initRegisterForm() {
       msg.style.color = 'inherit';
     }
 
-    const email = emailInput.value.trim();
-    const password = pass1Input.value;
-    const confirmPassword = pass2Input.value;
-    const notRobot = notRobotInput.checked;
+    const email = (emailInput?.value || '').trim();
+    const password = pass1Input?.value || '';
+    const confirmPassword = pass2Input?.value || '';
+    const notRobot = !!(notRobotInput && notRobotInput.checked);
 
     if (!email || !password || !confirmPassword) {
       msg.textContent = 'Wypełnij wszystkie pola.';
@@ -71,16 +74,13 @@ function initRegisterForm() {
       return;
     }
 
-    // ===== reCAPTCHA =====
-    if (typeof grecaptcha === 'undefined') {
-      msg.textContent = 'Błąd reCAPTCHA (skrypt się nie załadował). Odśwież stronę.';
-      msg.style.color = 'red';
-      return;
+    // reCAPTCHA – pobieramy token
+    let recaptchaToken = null;
+    if (typeof grecaptcha !== 'undefined') {
+      recaptchaToken = grecaptcha.getResponse();
     }
-
-    const recaptchaToken = grecaptcha.getResponse();
     if (!recaptchaToken) {
-      msg.textContent = 'Potwierdź reCAPTCHA (kliknij "Nie jestem robotem").';
+      msg.textContent = 'Potwierdź reCAPTCHA.';
       msg.style.color = 'red';
       return;
     }
@@ -93,14 +93,12 @@ function initRegisterForm() {
           email,
           password,
           confirmPassword,
-          recaptchaToken,
+          recaptchaToken
         }),
       });
 
       let data = {};
-      try {
-        data = await res.json();
-      } catch (e) {}
+      try { data = await res.json(); } catch (e) {}
 
       if (!res.ok) {
         msg.textContent = data.error || 'Błąd przy rejestracji.';
@@ -109,46 +107,43 @@ function initRegisterForm() {
         return;
       }
 
-      msg.textContent =
-        data.message ||
-        'Konto utworzone. Sprawdź maila / konsolę serwera (link weryfikacyjny).';
+      msg.textContent = data.message || 'Konto utworzone. Sprawdź maila / konsolę serwera.';
       msg.style.color = 'green';
 
-      pass1Input.value = '';
-      pass2Input.value = '';
-      notRobotInput.checked = false;
-      grecaptcha.reset(); // reset reCAPTCHA
+      if (pass1Input) pass1Input.value = '';
+      if (pass2Input) pass2Input.value = '';
+      if (notRobotInput) notRobotInput.checked = false;
+      if (typeof grecaptcha !== 'undefined') {
+        grecaptcha.reset();
+      }
     } catch (err) {
       console.error(err);
       msg.textContent = 'Błąd połączenia z serwerem.';
       msg.style.color = 'red';
     }
   });
-
-  const googleBtn = document.getElementById('google-register-btn');
-  if (googleBtn) {
-    googleBtn.addEventListener('click', () => {
-      alert('Logowanie przez Google dodamy później 😉');
-    });
-  }
 }
 
-// ===== LOGOWANIE =====
+// =========================
+//  LOGOWANIE
+// =========================
 function initLoginForm() {
   const form = document.getElementById('login-form');
+  if (!form) return;
+
   const emailInput = document.getElementById('login-email');
   const passInput = document.getElementById('login-password');
   const msg = document.getElementById('login-message');
 
-  if (!form) return;
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    msg.textContent = '';
-    msg.style.color = 'inherit';
+    if (msg) {
+      msg.textContent = '';
+      msg.style.color = 'inherit';
+    }
 
-    const email = emailInput.value.trim();
-    const password = passInput.value;
+    const email = (emailInput?.value || '').trim();
+    const password = passInput?.value || '';
 
     if (!email || !password) {
       msg.textContent = 'Podaj email i hasło.';
@@ -156,41 +151,47 @@ function initLoginForm() {
       return;
     }
 
-    // --- reCAPTCHA ---
-    if (typeof grecaptcha === 'undefined') {
-      msg.textContent = 'Błąd reCAPTCHA (skrypt się nie załadował). Odśwież stronę.';
-      msg.style.color = 'red';
-      return;
+    // reCAPTCHA – używamy tego samego widgetu, co przy rejestracji
+    let recaptchaToken = null;
+    if (typeof grecaptcha !== 'undefined') {
+      recaptchaToken = grecaptcha.getResponse();
     }
-
-    const recaptchaToken = grecaptcha.getResponse();
     if (!recaptchaToken) {
       msg.textContent = 'Potwierdź reCAPTCHA (kliknij "Nie jestem robotem").';
       msg.style.color = 'red';
       return;
     }
-    // -----------------
 
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, recaptchaToken })
+        body: JSON.stringify({
+          email,
+          password,
+          recaptchaToken
+        }),
       });
 
-      const data = await res.json();
+      let data = {};
+      try { data = await res.json(); } catch (e) {}
 
       if (!res.ok) {
         msg.textContent = data.error || 'Błędne dane logowania.';
         msg.style.color = 'red';
+        console.error('Błąd logowania:', data);
         return;
       }
 
       msg.textContent = 'Zalogowano pomyślnie.';
       msg.style.color = 'green';
 
-      // czyścimy captcha po udanym logowaniu
-      grecaptcha.reset();
+      // Czyścimy tylko hasło
+      if (passInput) passInput.value = '';
+
+      if (typeof grecaptcha !== 'undefined') {
+        grecaptcha.reset();
+      }
     } catch (err) {
       console.error(err);
       msg.textContent = 'Błąd połączenia z serwerem.';
@@ -199,10 +200,13 @@ function initLoginForm() {
   });
 }
 
-// ===== LISTA BITÓW =====
+// =========================
+//  LISTA BITÓW (opcjonalnie)
+// =========================
 function initBeatsSection() {
   const btn = document.getElementById('load-beats-btn');
   const list = document.getElementById('beats-list');
+
   if (!btn || !list) return;
 
   btn.addEventListener('click', async () => {
@@ -234,16 +238,25 @@ function initBeatsSection() {
   });
 }
 
-// ===== START PO ZAŁADOWANIU =====
-document.addEventListener('DOMContentLoaded', () => {
-  // ...twoje initAgeCheck(), initRegisterForm() itd...
-
+// =========================
+//  GOOGLE LOGIN PRZYCISK
+// =========================
+function initGoogleButton() {
   const googleBtn = document.getElementById('google-register-btn');
-  if (googleBtn) {
-    googleBtn.addEventListener('click', () => {
-      // przekierowanie do backendu (który wysyła cię do Google)
-      window.location.href = '/api/auth/google';
-    });
-  }
-});
+  if (!googleBtn) return;
 
+  googleBtn.addEventListener('click', () => {
+    window.location.href = '/api/auth/google';
+  });
+}
+
+// =========================
+//  INICJALIZACJA
+// =========================
+document.addEventListener('DOMContentLoaded', () => {
+  initAgeCheck();
+  initRegisterForm();
+  initLoginForm();
+  initBeatsSection();
+  initGoogleButton();
+});
